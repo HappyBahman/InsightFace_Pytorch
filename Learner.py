@@ -1,5 +1,5 @@
 from data.data_pipe import de_preprocess, get_train_loader, get_val_data
-from model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm
+from model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm, Arcface_Gaussian
 from verifacation import evaluate
 import torch
 from torch import optim
@@ -33,7 +33,7 @@ class face_learner(object):
 
             self.writer = SummaryWriter(conf.log_path)
             self.step = 0
-            self.head = Arcface(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
+            self.head = Arcface_Gaussian(embedding_size=conf.embedding_size, classnum=self.class_num).to(conf.device)
 
             print('two model heads generated')
 
