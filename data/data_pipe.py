@@ -12,6 +12,8 @@ import torch
 import mxnet as mx
 from tqdm import tqdm
 
+import os
+
 def de_preprocess(tensor):
     return tensor*0.5 + 0.5
     
@@ -27,10 +29,10 @@ def get_train_dataset(imgs_folder):
 
 def get_train_loader(conf):
     if conf.data_mode in ['ms1m', 'concat']:
-        ms1m_ds, ms1m_class_num = get_train_dataset(conf.ms1m_folder/'imgs')
+        ms1m_ds, ms1m_class_num = get_train_dataset(conf.ms1m_folder + '/imgs')
         print('ms1m loader generated')
     if conf.data_mode in ['vgg', 'concat']:
-        vgg_ds, vgg_class_num = get_train_dataset(conf.vgg_folder/'imgs')
+        vgg_ds, vgg_class_num = get_train_dataset(conf.vgg_folder + '/imgs')
         print('vgg loader generated')        
     if conf.data_mode == 'vgg':
         ds = vgg_ds
@@ -44,13 +46,13 @@ def get_train_loader(conf):
         ds = ConcatDataset([ms1m_ds,vgg_ds])
         class_num = vgg_class_num + ms1m_class_num
     elif conf.data_mode == 'emore':
-        ds, class_num = get_train_dataset(conf.emore_folder/'imgs')
+        ds, class_num = get_train_dataset(conf.emore_folder + '/imgs')
     loader = DataLoader(ds, batch_size=conf.batch_size, shuffle=True, pin_memory=conf.pin_memory, num_workers=conf.num_workers)
     return loader, class_num 
     
 def load_bin(path, rootdir, transform, image_size=[112,112]):
-    if not rootdir.exists():
-        rootdir.mkdir()
+    if not os.path.exists(rootdir):
+        os.mkdir(rootdir)
     bins, issame_list = pickle.load(open(path, 'rb'), encoding='bytes')
     data = bcolz.fill([len(bins), 3, image_size[0], image_size[1]], dtype=np.float32, rootdir=rootdir, mode='w')
     for i in range(len(bins)):
@@ -67,8 +69,8 @@ def load_bin(path, rootdir, transform, image_size=[112,112]):
     return data, issame_list
 
 def get_val_pair(path, name):
-    carray = bcolz.carray(rootdir = path/name, mode='r')
-    issame = np.load(path/'{}_list.npy'.format(name))
+    carray = bcolz.carray(rootdir = path + '/' + name, mode='r')
+    issame = np.load(path + '/{}_list.npy'.format(name))
     return carray, issame
 
 def get_val_data(data_path):
@@ -78,10 +80,10 @@ def get_val_data(data_path):
     return agedb_30, cfp_fp, lfw, agedb_30_issame, cfp_fp_issame, lfw_issame
 
 def load_mx_rec(rec_path):
-    save_path = rec_path/'imgs'
-    if not save_path.exists():
-        save_path.mkdir()
-    imgrec = mx.recordio.MXIndexedRecordIO(str(rec_path/'train.idx'), str(rec_path/'train.rec'), 'r')
+    save_path = rec_path + '/imgs'
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+    imgrec = mx.recordio.MXIndexedRecordIO(str(rec_path + '/train.idx'), str(rec_path + '/train.rec'), 'r')
     img_info = imgrec.read_idx(0)
     header,_ = mx.recordio.unpack(img_info)
     max_idx = int(header.label[0])
@@ -90,10 +92,10 @@ def load_mx_rec(rec_path):
         header, img = mx.recordio.unpack_img(img_info)
         label = int(header.label)
         img = Image.fromarray(img)
-        label_path = save_path/str(label)
-        if not label_path.exists():
-            label_path.mkdir()
-        img.save(label_path/'{}.jpg'.format(idx), quality=95)
+        label_path = save_path + '/' + str(label)
+        if not os.path.exists(label_path):
+            os.mkdir(label_path)
+        img.save(label_path + '/{}.jpg'.format(idx), quality=95)
 
 # class train_dataset(Dataset):
 #     def __init__(self, imgs_bcolz, label_bcolz, h_flip=True):

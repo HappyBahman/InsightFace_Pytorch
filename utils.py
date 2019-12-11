@@ -10,6 +10,7 @@ import torch
 from model import l2_norm
 import pdb
 import cv2
+import os,os.path
 
 def separate_bn_paras(modules):
     if not isinstance(modules, list):
@@ -28,17 +29,37 @@ def separate_bn_paras(modules):
                 paras_wo_bn.extend([*layer.parameters()])
     return paras_only_bn, paras_wo_bn
 
-def prepare_facebank(conf, model, mtcnn, tta = True):
+def prepare_facebank(conf, model, mtcnn, tta = True,
+                     load_from_custom_dir = False, dir_name_dict = None):
+    '''
+    :param conf: configurations
+    :param model:
+    :param mtcnn:
+    :param tta: test time augmentation
+    :param load_from_custom_dir: whether the model should load data from a custom directory
+    :param dir_name_dict: a dictionary of name of each person in the dataset
+    and the folder containing all their photos
+    :return: embeddings of faces and their names (both lists)
+    '''
     model.eval()
     embeddings =  []
-    names = ['Unknown']
-    for path in conf.facebank_path.iterdir():
-        if path.is_file():
+    names = [conf.unknown_constant]
+    names = [conf.unknown_constant]
+
+    if load_from_custom_dir:
+        data_dirs_dict = dir_name_dict
+    else:
+        data_dirs_dict = {f:os.path.join(conf.facebank_path, f) for f in os.listdir(conf.facebank_path)}
+    # for path in conf.facebank_path.iterdir():
+    for name in data_dirs_dict:
+        path = data_dirs_dict[name]
+        if os.path.isfile(path):
             continue
         else:
             embs = []
-            for file in path.iterdir():
-                if not file.is_file():
+            files = [os.path.join(path, f) for f in os.listdir(path)]
+            for file in files:
+                if not os.path.isfile(file):
                     continue
                 else:
                     try:
@@ -59,16 +80,16 @@ def prepare_facebank(conf, model, mtcnn, tta = True):
             continue
         embedding = torch.cat(embs).mean(0,keepdim=True)
         embeddings.append(embedding)
-        names.append(path.name)
+        names.append(name)
     embeddings = torch.cat(embeddings)
     names = np.array(names)
-    torch.save(embeddings, conf.facebank_path/'facebank.pth')
-    np.save(conf.facebank_path/'names', names)
+    torch.save(embeddings, conf.facebank_path + '/' + 'facebank.pth')
+    np.save(conf.facebank_path + '/' + 'names', names)
     return embeddings, names
 
 def load_facebank(conf):
-    embeddings = torch.load(conf.facebank_path/'facebank.pth')
-    names = np.load(conf.facebank_path/'names.npy')
+    embeddings = torch.load(conf.facebank_path +'/' + 'facebank.pth')
+    names = np.load(conf.facebank_path + '/' + 'names.npy')
     return embeddings, names
 
 def face_reader(conf, conn, flag, boxes_arr, result_arr, learner, mtcnn, targets, tta):
@@ -86,7 +107,7 @@ def face_reader(conf, conn, flag, boxes_arr, result_arr, learner, mtcnn, targets
         
         if len(bboxes) > 0:
             print('bboxes in reader : {}'.format(bboxes))
-            bboxes = bboxes[:,:-1] #shape:[10,4],only keep 10 highest possibiity faces
+            bboxes = bboxes[:,:-1] #shape:[10,4],only keep 10 highest possibility faces
             bboxes = bboxes.astype(int)
             bboxes = bboxes + [-1,-1,1,1] # personal choice            
             assert bboxes.shape[0] == results.shape[0],'bbox and faces number not same'

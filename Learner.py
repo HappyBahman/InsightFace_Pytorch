@@ -14,6 +14,9 @@ from torchvision import transforms as trans
 import math
 import bcolz
 
+# edited code:
+import os
+
 class face_learner(object):
     def __init__(self, conf, inference=False):
         print(conf)
@@ -54,7 +57,7 @@ class face_learner(object):
             self.board_loss_every = len(self.loader)//100
             self.evaluate_every = len(self.loader)//10
             self.save_every = len(self.loader)//5
-            self.agedb_30, self.cfp_fp, self.lfw, self.agedb_30_issame, self.cfp_fp_issame, self.lfw_issame = get_val_data(self.loader.dataset.root.parent)
+            self.agedb_30, self.cfp_fp, self.lfw, self.agedb_30_issame, self.cfp_fp_issame, self.lfw_issame = get_val_data(os.path.dirname(self.loader.dataset.root))
         else:
             self.threshold = conf.threshold
     
@@ -64,25 +67,26 @@ class face_learner(object):
         else:
             save_path = conf.model_path
         torch.save(
-            self.model.state_dict(), save_path /
+            self.model.state_dict(), save_path + '/' +
             ('model_{}_accuracy:{}_step:{}_{}.pth'.format(get_time(), accuracy, self.step, extra)))
         if not model_only:
             torch.save(
-                self.head.state_dict(), save_path /
+                self.head.state_dict(), save_path + '/' +
                 ('head_{}_accuracy:{}_step:{}_{}.pth'.format(get_time(), accuracy, self.step, extra)))
             torch.save(
-                self.optimizer.state_dict(), save_path /
+                self.optimizer.state_dict(), save_path + '/' +
                 ('optimizer_{}_accuracy:{}_step:{}_{}.pth'.format(get_time(), accuracy, self.step, extra)))
+        print('model saved!!!')
     
     def load_state(self, conf, fixed_str, from_save_folder=False, model_only=False):
         if from_save_folder:
             save_path = conf.save_path
         else:
             save_path = conf.model_path            
-        self.model.load_state_dict(torch.load(save_path/'model_{}'.format(fixed_str)))
+        self.model.load_state_dict(torch.load(save_path+ '/' +'model_{}'.format(fixed_str)))
         if not model_only:
-            self.head.load_state_dict(torch.load(save_path/'head_{}'.format(fixed_str)))
-            self.optimizer.load_state_dict(torch.load(save_path/'optimizer_{}'.format(fixed_str)))
+            self.head.load_state_dict(torch.load(save_path+ '/' +'head_{}'.format(fixed_str)))
+            self.optimizer.load_state_dict(torch.load(save_path+ '/' +'optimizer_{}'.format(fixed_str)))
         
     def board_val(self, db_name, accuracy, best_threshold, roc_curve_tensor):
         self.writer.add_scalar('{}_accuracy'.format(db_name), accuracy, self.step)
@@ -218,7 +222,7 @@ class face_learner(object):
                     self.model.train()
                 if self.step % self.save_every == 0 and self.step != 0:
                     self.save_state(conf, accuracy)
-                    
+
                 self.step += 1
                 
         self.save_state(conf, accuracy, to_save_folder=True, extra='final')
@@ -227,8 +231,8 @@ class face_learner(object):
         for params in self.optimizer.param_groups:                 
             params['lr'] /= 10
         print(self.optimizer)
-    
-    def infer(self, conf, faces, target_embs, tta=False):
+
+    def infer(self, conf, faces, target_embs, tta=False, k=1):
         '''
         faces : list of PIL Image
         target_embs : [n, 512] computed embeddings of faces in facebank
@@ -242,12 +246,14 @@ class face_learner(object):
                 emb = self.model(conf.test_transform(img).to(conf.device).unsqueeze(0))
                 emb_mirror = self.model(conf.test_transform(mirror).to(conf.device).unsqueeze(0))
                 embs.append(l2_norm(emb + emb_mirror))
-            else:                        
+            else:
                 embs.append(self.model(conf.test_transform(img).to(conf.device).unsqueeze(0)))
+
         source_embs = torch.cat(embs)
-        
-        diff = source_embs.unsqueeze(-1) - target_embs.transpose(1,0).unsqueeze(0)
+        diff = source_embs.unsqueeze(-1) - target_embs.transpose(1, 0).unsqueeze(0)
         dist = torch.sum(torch.pow(diff, 2), dim=1)
-        minimum, min_idx = torch.min(dist, dim=1)
-        min_idx[minimum > self.threshold] = -1 # if no match, set idx to -1
-        return min_idx, minimum               
+        # minimum, min_idx = torch.min(dist, dim=1)
+        minimum, min_idx = torch.topk(dist, k, dim=1, largest=False)
+        min_idx[minimum > self.threshold] = -1  # if no match, set idx to -1
+
+        return min_idx, minimum
