@@ -12,7 +12,11 @@ if __name__ == '__main__':
     parser.add_argument('-lr','--lr',help='learning rate',default=1e-3, type=float)
     parser.add_argument("-b", "--batch_size", help="batch_size", default=96, type=int)
     parser.add_argument("-w", "--num_workers", help="workers number", default=3, type=int)
-    parser.add_argument("-d", "--data_mode", help="use which database, [vgg, ms1m, emore, concat]",default='emore', type=str)
+    parser.add_argument("-d", "--data_mode", help="use which database, [vgg, ms1m, emore, concat]", default='emore', type=str)
+    # for continuing training from a trained model
+    parser.add_argument("-lo", "--load_model",
+                        help="whether model should be loaded before training, enter fixed part of file string",
+                        default=None, type=str)
     args = parser.parse_args()
 
     conf = get_config()
@@ -29,4 +33,4 @@ if __name__ == '__main__':
     conf.data_mode = args.data_mode
     learner = face_learner(conf)
 
-    learner.train(conf, args.epochs)
+    learner.train(conf, args.epochs, fixed_str=args.load_model)

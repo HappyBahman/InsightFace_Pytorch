@@ -185,7 +185,9 @@ class face_learner(object):
                 plt.plot(log_lrs[10:-5], losses[10:-5])
                 return log_lrs, losses    
 
-    def train(self, conf, epochs):
+    def train(self, conf, epochs, load_model_fixed_str = None):
+        if load_model_fixed_str is not None:
+            self.load_state(conf, load_model_fixed_str, from_save_folder=False, model_only=False)
         self.model.train()
         running_loss = 0.            
         for e in range(epochs):

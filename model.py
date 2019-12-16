@@ -244,7 +244,7 @@ class Arcface_Gaussian(Module):
     def __init__(self, embedding_size=512, classnum=51332):
         # 95% of times m will be smaller than 0.5 which is the default value of m in https://arxiv.org/abs/1801.05599
         # 68% of times m will be smaller than 0.25 which is a somewhat softer margin rather than fixed 0.5
-        super(Arcface, self).__init__()
+        super(Arcface_Gaussian, self).__init__()
         self.classnum = classnum
         self.kernel = Parameter(torch.Tensor(embedding_size, classnum))
         # initial kernel
