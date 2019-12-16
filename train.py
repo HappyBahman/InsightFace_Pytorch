@@ -37,4 +37,4 @@ if __name__ == '__main__':
     conf.data_mode = args.data_mode
     learner = face_learner(conf)
 
-    learner.train(conf, args.epochs, fixed_str=args.load_model, args.step)
+    learner.train(conf, args.epochs, fixed_str=args.load_model, step=args.step)
