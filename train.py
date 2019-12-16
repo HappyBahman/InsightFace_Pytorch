@@ -17,6 +17,10 @@ if __name__ == '__main__':
     parser.add_argument("-lo", "--load_model",
                         help="whether model should be loaded before training, enter fixed part of file string",
                         default=None, type=str)
+    parser.add_argument("-st", "--step",
+                        help="the starting value for step variable which is used in model name when saving",
+                        default=0, type=int)
+
     args = parser.parse_args()
 
     conf = get_config()
@@ -33,4 +37,4 @@ if __name__ == '__main__':
     conf.data_mode = args.data_mode
     learner = face_learner(conf)
 
-    learner.train(conf, args.epochs, fixed_str=args.load_model)
+    learner.train(conf, args.epochs, fixed_str=args.load_model, args.step)
